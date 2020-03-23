@@ -1,0 +1,117 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "azure_service_bus_namespace_name": {
+      "defaultValue": "launchb-techsession",
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ServiceBus/namespaces",
+      "apiVersion": "2018-01-01-preview",
+      "name": "[parameters('azure_service_bus_namespace_name')]",
+      "location": "UK South",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+      }
+    },
+    {
+      "type": "Microsoft.ServiceBus/namespaces/queues",
+      "apiVersion": "2017-04-01",
+      "name": "[concat(parameters('azure_service_bus_namespace_name'), '/email-service')]",
+      "location": "UK South",
+      "properties": {
+        "path": "[concat(parameters('azure_service_bus_namespace_name'), '/email-service')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ServiceBus/namespaces', parameters('azure_service_bus_namespace_name'))]"
+      ]
+    },    
+    {
+      "type": "Microsoft.ServiceBus/namespaces/queues",
+      "apiVersion": "2017-04-01",
+      "name": "[concat(parameters('azure_service_bus_namespace_name'), '/profile-service')]",
+      "location": "UK South",
+      "properties": {
+        "path": "[concat(parameters('azure_service_bus_namespace_name'), '/profile-service')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ServiceBus/namespaces', parameters('azure_service_bus_namespace_name'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.ServiceBus/namespaces/topics",
+      "apiVersion": "2017-04-01",
+      "name": "[concat(parameters('azure_service_bus_namespace_name'), '/user')]",
+      "location": "UK South",
+      "properties": {
+        "path": "[concat(parameters('azure_service_bus_namespace_name'), '/user')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ServiceBus/namespaces', parameters('azure_service_bus_namespace_name'))]"
+      ],
+      "resources": [
+        {
+          "apiVersion": "2017-04-01",
+          "name": "user-emails",
+          "type": "Subscriptions",
+          "dependsOn": [
+            "user",
+            "email-service"
+          ],
+          "properties": {
+            "forwardTo": "email-service"
+          },
+          "resources": [
+            {
+              "apiVersion": "2017-04-01",
+              "name": "user-emails-usercreated",
+              "type": "Rules",
+              "dependsOn": [
+                "user-emails"
+              ],
+              "properties": {
+                "filterType": "SqlFilter",
+                "sqlFilter": {
+                  "sqlExpression": "sys.ContentType = 'UserCreated'"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "apiVersion": "2017-04-01",
+          "name": "user-profile",
+          "type": "Subscriptions",
+          "dependsOn": [
+            "user",
+            "profile-service"
+          ],
+          "properties": {
+            "forwardTo": "profile-service"
+          },
+          "resources": [
+            {
+              "apiVersion": "2017-04-01",
+              "name": "user-profile-usercreated",
+              "type": "Rules",
+              "dependsOn": [
+                "user-profile"
+              ],
+              "properties": {
+                "filterType": "SqlFilter",
+                "sqlFilter": {
+                  "sqlExpression": "sys.ContentType = 'UserCreated'"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
